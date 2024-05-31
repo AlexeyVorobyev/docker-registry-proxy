@@ -1,0 +1,42 @@
+version: "1.0"
+name: "alex-docker-registry"
+
+services:
+  alex-docker-registry-docker-mirror-registry:
+    container_name: alex-docker-registry-docker-mirror-registry
+    image: registry:2.8.3
+    volumes:
+      - ./data/:/var/lib/registry
+    environment:
+      - REGISTRY_PROXY_REMOTEURL=${DOCKER_MIRROR_REGISTRY_PROXY}
+      - REGISTRY_HTTP_ADDR=${DOCKER_MIRROR_REGISTRY_ADDRESS}:2000
+      - REGISTRY_STORAGE_DELETE_ENABLED=true
+    restart: always
+    networks:
+      registry-docker-network:
+        ipv4_address: ${DOCKER_MIRROR_REGISTRY_ADDRESS}
+
+  alex-docker-registry-nginx-reverse-proxy:
+    container_name: alex-docker-registry-nginx-reverse-proxy
+    build:
+      context: nginx
+      no_cache: true
+    hostname: nginx-reverse-proxy
+    depends_on:
+      - alex-docker-registry-docker-mirror-registry
+    environment:
+      DOCKER_MIRROR_REGISTRY_ADDRESS: ${DOCKER_MIRROR_REGISTRY_ADDRESS}
+    ports:
+      - ${NGINX_REVERSE_PROXY_EXTERNAL_PORT}:80
+    networks:
+      registry-docker-network:
+        ipv4_address: ${NGINX_REVERSE_PROXY_ADDRESS}
+
+networks:
+  registry-docker-network:
+    driver: bridge
+    external: true
+    ipam:
+      config:
+        - subnet: ${COMPOSE_SUBNET}
+          gateway: ${COMPOSE_GATEWAY}
